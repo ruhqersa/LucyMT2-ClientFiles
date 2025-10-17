@@ -649,6 +649,25 @@ class Interface(object):
 		self.wndInventory.SetTop()
 		self.dlgShop.Open(vid)
 		self.dlgShop.SetTop()
+	if app.ENABLE_OFFLINE_SHOP_SYSTEM:
+		def UpdateShopGold(self, gold):
+			self.dlgShop.UpdateGold(gold)
+
+		if app.ENABLE_CHEQUE_SYSTEM:
+			def UpdateShopCheque(self, cheque):
+				self.dlgShop.UpdateCheque(cheque)
+
+		def UpdateShopLock(self, lock):
+			self.dlgShop.UpdateLock(lock)
+
+		def UpdateShopTime(self, time):
+			self.dlgShop.UpdateTime(time)
+
+		def UpdateShopSign(self, sign):
+			self.dlgShop.UpdateSign(sign)
+
+		def OpenOfflineShop(self, sign, channel, index, x, y, time, update):
+			self.dlgShop.OpenOfflineShop(sign, channel, index, x, y, time, update)
 
 	def CloseShopDialog(self):
 		self.dlgShop.Close()

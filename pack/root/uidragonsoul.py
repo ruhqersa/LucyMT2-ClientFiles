@@ -18,6 +18,9 @@ import constInfo
 import ime
 import uiInventory
 import sys
+if app.ENABLE_OFFLINE_SHOP_SYSTEM:
+	import shop
+
 ITEM_FLAG_APPLICABLE = 1 << 14
 
 # 용혼석 Vnum에 대한 comment	
@@ -444,7 +447,10 @@ class DragonSoulWindow(ui.ScriptWindow):
 				mouseModule.mouseController.RunCallBack("INVENTORY")
 
 			elif player.SLOT_TYPE_SHOP == attachedSlotType:
-				net.SendShopBuyPacket(attachedSlotPos)
+				if app.ENABLE_OFFLINE_SHOP_SYSTEM and shop.IsOwner():
+					net.SendShopWithdrawItemPacket(attachedSlotPos)
+				else:
+					net.SendShopBuyPacket(attachedSlotPos)
 
 			elif player.SLOT_TYPE_SAFEBOX == attachedSlotType:
 				if player.ITEM_MONEY == attachedItemIndex:

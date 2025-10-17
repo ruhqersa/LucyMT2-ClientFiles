@@ -11,6 +11,7 @@ import chat
 import item
 import systemSetting #±Ë¡ÿ»£
 import player #±Ë¡ÿ»£
+import app
 
 g_isBuildingPrivateShop = False
 
@@ -325,7 +326,10 @@ class PrivateShopBuilder(ui.ScriptWindow):
 		if 0 == len(self.itemStock):
 			return
 
-		shop.BuildPrivateShop(self.title)
+		if app.ENABLE_OFFLINE_SHOP_SYSTEM:
+			shop.BuildPrivateShop(self.title, True)
+		else:
+			shop.BuildPrivateShop(self.title)
 		self.Close()
 
 	def OnClose(self):

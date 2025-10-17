@@ -226,6 +226,9 @@ def __InitData():
 
 	#»ç¶ûÀÇ ÆÒ´øÆ® Âø¿ë¼ø°£ ¹ßµ¿ ÀÌÆåÆ®
 	chrmgr.RegisterCacheEffect(chrmgr.EFFECT_LOVE_PENDANT_EQUIP, "", "d:/ymir work/effect/etc/buff/buff_item4.mse")
+	
+	if app.ENABLE_OFFLINE_SHOP_SYSTEM:
+		chrmgr.RegisterCacheEffect(chrmgr.EFFECT_MY_OFFLINE_SHOP, "", "d:/ymir work/effect/etc/myshop/2.mse")
 
 	chrmgr.RegisterCacheEffect(chrmgr.EFFECT_PENETRATE, "Bip01", "d:/ymir work/effect/hit/gwantong.mse")
 	#chrmgr.RegisterCacheEffect(chrmgr.EFFECT_BLOCK, "", "d:/ymir work/effect/etc/")

@@ -2189,4 +2189,22 @@ class GameWindow(ui.ScriptWindow):
 		def RefreshSwitchbotItem(self, slot):
 			self.interface.RefreshSwitchbotItem(slot)
 
+	if app.ENABLE_OFFLINE_SHOP_SYSTEM:
+		def UpdateShopGold(self, gold):
+			self.interface.UpdateShopGold(gold)
 
+		if app.ENABLE_CHEQUE_SYSTEM:
+			def UpdateShopCheque(self, cheque):
+				self.interface.UpdateShopCheque(cheque)
+
+		def UpdateShopLock(self, lock):
+			self.interface.UpdateShopLock(lock)
+
+		def UpdateShopTime(self, time):
+			self.interface.UpdateShopTime(time)
+
+		def UpdateShopSign(self, sign):
+			self.interface.UpdateShopSign(sign)
+
+		def OpenOfflineShop(self, sign, channel, index, x, y, time, update):
+			self.interface.OpenOfflineShop(sign, channel, index, x, y, time, update)

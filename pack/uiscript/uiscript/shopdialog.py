@@ -193,7 +193,96 @@ window = {
 					"over_image" : "d:/ymir work/ui/public/small_button_02.sub",
 					"down_image" : "d:/ymir work/ui/public/small_button_03.sub",
 				},
+
+				## MoneySlot
+				{
+					"name" : "MoneySlot",
+					"type" : "button",
+
+					"x" : 35,
+					"y" : 295,
+
+					"width" : 70,
+					"height" : 17,
+
+					"horizontal_align" : "center",
+
+					"default_image" : "d:/ymir work/ui/public/parameter_slot_03.sub",
+					"over_image" : "d:/ymir work/ui/public/parameter_slot_03.sub",
+					"down_image" : "d:/ymir work/ui/public/parameter_slot_03.sub",
+
+					"children" :
+					(
+						{
+							"name" : "MoneyIcon",
+							"type" : "image",
+
+							"x" : -18,
+							"y" : 2,
+
+							"image" : "d:/ymir work/ui/game/windows/money_icon.sub",
+						},
+
+						{
+							"name" : "Money",
+							"type" : "text",
+
+							"x" : 3,
+							"y" : 3,
+
+							"horizontal_align" : "right",
+							"text_horizontal_align" : "right",
+
+							"text" : "123456789",
+						},
+					),
+				},
+
+				## ChequeSlot
+				#{
+					# name" : "Cheque_Slot",
+					#"type" : "slotbar",
+
+					#"x" : -50,
+					#"y" : 295,
+
+					#"width" : 24,
+					#"height" : 17,
+
+					#"horizontal_align" : "center",
+
+					#"default_image" : "d:/ymir work/ui/public/parameter_slot_01.sub",
+					#"over_image" : "d:/ymir work/ui/public/parameter_slot_01.sub",
+					#"down_image" : "d:/ymir work/ui/public/parameter_slot_01.sub",
+
+					#"children" :
+					#(
+					#	{
+					#		"name" : "ChequeIcon",
+					#		"type" : "image",
+
+					#		"x" : -18,
+					#		"y" : 2,
+
+					#		"image":"d:/ymir work/ui/game/windows/cheque_icon.sub",
+					#	},
+
+					#	{
+					#		"name" : "Cheque",
+					#		"type" : "text",
+
+					#		"x" : 3,
+					#		"y" : 3,
+
+					#		"horizontal_align" : "right",
+					#		"text_horizontal_align" : "right",
+
+					#		"text" : "123456789",
+					#	},
+					#),
+				#},
 			),
 		},
 	),
 }
+

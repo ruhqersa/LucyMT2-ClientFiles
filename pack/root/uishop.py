@@ -14,6 +14,12 @@ import mouseModule
 import localeInfo
 import constInfo
 
+if app.ENABLE_OFFLINE_SHOP_SYSTEM:
+	import uiPickMoney
+	import time
+	import background
+	import uiScriptLocale
+
 ###################################################################################################
 ## Shop
 class ShopDialog(ui.ScriptWindow):
@@ -26,6 +32,9 @@ class ShopDialog(ui.ScriptWindow):
 		self.questionDialog = None
 		self.popup = None
 		self.itemBuyQuestionDialog = None
+		if app.ENABLE_OFFLINE_SHOP_SYSTEM:
+			self.offlineShopWnd = OfflineShopWindow()
+			self.priceInputBoard = None
 
 	def __del__(self):
 		ui.ScriptWindow.__del__(self)
@@ -75,6 +84,15 @@ class ShopDialog(ui.ScriptWindow):
 			smallTab1 = GetObject("SmallTab1")
 			smallTab2 = GetObject("SmallTab2")
 			smallTab3 = GetObject("SmallTab3")
+			if app.ENABLE_OFFLINE_SHOP_SYSTEM:
+				self.goldButton = GetObject("MoneySlot")
+				self.goldText = GetObject("Money")
+				self.goldAmount = 0
+
+				if app.ENABLE_CHEQUE_SYSTEM:
+					self.chequeButton = GetObject("Cheque_Slot")
+					self.chequeText = GetObject("Cheque")
+					self.chequeAmount = 0
 		except:
 			import exception
 			exception.Abort("ShopDialog.LoadDialog.BindObject")
@@ -94,6 +112,15 @@ class ShopDialog(ui.ScriptWindow):
 		self.btnSell.SetToggleDownEvent(ui.__mem_func__(self.OnSell))
 
 		self.btnClose.SetEvent(ui.__mem_func__(self.AskClosePrivateShop))
+
+		if app.ENABLE_OFFLINE_SHOP_SYSTEM:
+			self.goldButton.SetEvent(ui.__mem_func__(self.OpenPickMoneyDialog))
+
+			self.dlgPickMoney = uiPickMoney.PickMoneyDialog()
+			self.dlgPickMoney.SetAcceptEvent(ui.__mem_func__(self.OnPickMoney))
+			self.dlgPickMoney.LoadDialog()
+			self.dlgPickMoney.SetMax(10)
+			self.dlgPickMoney.Hide()
 
 		self.titleBar.SetCloseEvent(ui.__mem_func__(self.Close))
 
@@ -150,8 +177,19 @@ class ShopDialog(ui.ScriptWindow):
 		self.titleBar = 0
 		self.questionDialog = None
 		self.popup = None
+		if app.ENABLE_OFFLINE_SHOP_SYSTEM:
+			self.offlineShopWnd.Destroy()
+			self.offlineShopWnd = None
+			self.goldButton = None
+			self.goldText = None
+			if app.ENABLE_CHEQUE_SYSTEM:
+				self.chequeButton = None
+				self.chequeText = None
+			self.dlgPickMoney.Destroy()
+			self.dlgPickMoney = None
+			self.priceInputBoard = None
 
-	def Open(self, vid):
+	def Open(self, vid, extraInfo = False):
 
 		isPrivateShop = False
 		isMainPlayerPrivateShop = False
@@ -203,6 +241,26 @@ class ShopDialog(ui.ScriptWindow):
 				self.__SetTabNames()
 				self.middleRadioButtonGroup.OnClick(1)
 
+		if app.ENABLE_OFFLINE_SHOP_SYSTEM:
+			if shop.IsOwner():
+				self.__HideBuySellButton()
+				self.goldButton.Show()
+				self.goldAmount = shop.GetGoldAmount()
+				self.goldText.SetText(localeInfo.NumberToMoney(self.goldAmount))
+				if app.ENABLE_CHEQUE_SYSTEM:
+					self.chequeButton.Show()
+					self.chequeAmount = shop.GetChequeAmount()
+					self.chequeText.SetText(localeInfo.NumberToCheque(self.chequeAmount))
+				x, y = self.GetGlobalPosition()
+				self.offlineShopWnd.Open(x, y, extraInfo)
+				self.itemSlotWindow.SetSlotStyle(wndMgr.SLOT_STYLE_PICK_UP)
+			else:
+				self.goldButton.Hide()
+				if app.ENABLE_CHEQUE_SYSTEM:
+					self.chequeButton.Hide()
+				self.offlineShopWnd.Hide()
+				self.itemSlotWindow.SetSlotStyle(wndMgr.SLOT_STYLE_NONE)
+
 		self.Refresh()
 		self.SetTop()
 		
@@ -218,6 +276,9 @@ class ShopDialog(ui.ScriptWindow):
 		if self.questionDialog:
 			self.OnCloseQuestionDialog()
 		shop.Close()
+		if app.ENABLE_OFFLINE_SHOP_SYSTEM:
+			self.offlineShopWnd.Close()
+			self.dlgPickMoney.Close()
 		net.SendShopEndPacket()
 		self.CancelShopping()
 		self.tooltipItem.HideToolTip()
@@ -352,10 +413,41 @@ class ShopDialog(ui.ScriptWindow):
 		constInfo.SET_ITEM_QUESTION_DIALOG_STATUS(0)
 
 	def SelectEmptySlot(self, selectedSlotPos):
-
 		isAttached = mouseModule.mouseController.isAttached()
 		if isAttached:
-			self.SellAttachedItem()
+			if app.ENABLE_OFFLINE_SHOP_SYSTEM:
+				if shop.IsOwner():
+					attachedSlotType = mouseModule.mouseController.GetAttachedType()
+					attachedSlotPos = mouseModule.mouseController.GetAttachedSlotNumber()
+					mouseModule.mouseController.DeattachObject()
+
+					if player.SLOT_TYPE_INVENTORY != attachedSlotType and player.SLOT_TYPE_DRAGON_SOUL_INVENTORY != attachedSlotType:
+						return
+
+					attachedInvenType = player.SlotTypeToInvenType(attachedSlotType)
+
+					itemVNum = player.GetItemIndex(attachedInvenType, attachedSlotPos)
+					item.SelectItem(itemVNum)
+
+					if item.IsAntiFlag(item.ANTIFLAG_GIVE) or item.IsAntiFlag(item.ANTIFLAG_MYSHOP):
+						chat.AppendChat(chat.CHAT_TYPE_INFO, localeInfo.PRIVATE_SHOP_CANNOT_SELL_ITEM)
+						return
+
+					priceInputBoard = uiCommon.MoneyInputDialog()
+					priceInputBoard.SetTitle(localeInfo.PRIVATE_SHOP_INPUT_PRICE_DIALOG_TITLE)
+					priceInputBoard.SetAcceptEvent(ui.__mem_func__(self.AcceptInputPrice))
+					priceInputBoard.SetCancelEvent(ui.__mem_func__(self.CancelInputPrice))
+					priceInputBoard.Open()
+
+					self.priceInputBoard = priceInputBoard
+					self.priceInputBoard.itemVNum = itemVNum
+					self.priceInputBoard.sourceWindowType = attachedInvenType
+					self.priceInputBoard.sourceSlotPos = attachedSlotPos
+					self.priceInputBoard.targetSlotPos = selectedSlotPos
+				else:
+					self.SellAttachedItem()
+			else:
+				self.SellAttachedItem()
 
 	def UnselectItemSlot(self, selectedSlotPos):
 		if constInfo.GET_ITEM_QUESTION_DIALOG_STATUS() == 1:
@@ -363,7 +455,10 @@ class ShopDialog(ui.ScriptWindow):
 		if shop.IsPrivateShop():
 			self.AskBuyItem(selectedSlotPos)
 		else:
-			net.SendShopBuyPacket(self.__GetRealIndex(selectedSlotPos))
+			if app.ENABLE_OFFLINE_SHOP_SYSTEM and shop.IsOwner():
+				net.SendShopWithdrawItemPacket(self.__GetRealIndex(selectedSlotPos))
+			else:
+				self.AskBuyItem(selectedSlotPos)
 
 	def SelectItemSlot(self, selectedSlotPos):
 		if constInfo.GET_ITEM_QUESTION_DIALOG_STATUS() == 1:
@@ -403,6 +498,9 @@ class ShopDialog(ui.ScriptWindow):
 		self.AskBuyItem(attachedSlotPos)
 
 	def AskBuyItem(self, slotPos):
+		if app.ENABLE_OFFLINE_SHOP_SYSTEM and shop.IsOwner():
+			net.SendShopWithdrawItemPacket(self.__GetRealIndex(slotPos))
+			return
 		slotPos = self.__GetRealIndex(slotPos)
 		
 		itemIndex = shop.GetItemID(slotPos)
@@ -451,12 +549,265 @@ class ShopDialog(ui.ScriptWindow):
 			self.tooltipItem.HideToolTip()
 
 	def OnUpdate(self):
-
 		USE_SHOP_LIMIT_RANGE = 1000
 
 		(x, y, z) = player.GetMainCharacterPosition()
 		if abs(x - self.xShopStart) > USE_SHOP_LIMIT_RANGE or abs(y - self.yShopStart) > USE_SHOP_LIMIT_RANGE:
 			self.Close()
+
+		self.offlineShopWnd.UpdateTime()
+
+	if app.ENABLE_OFFLINE_SHOP_SYSTEM:
+		def OnMoveWindow(self, x, y):
+			self.offlineShopWnd.UpdatePosition(x, y)
+
+		if app.ENABLE_CHEQUE_SYSTEM:
+			def OpenPickMoneyDialog(self):
+				self.dlgPickMoney.SetTitleName(localeInfo.PICK_MONEY_TITLE)
+				self.dlgPickMoney.Open(self.goldAmount, self.chequeAmount)
+		else:
+			def OpenPickMoneyDialog(self):
+				self.dlgPickMoney.SetTitleName(localeInfo.PICK_MONEY_TITLE)
+				self.dlgPickMoney.Open(self.goldAmount)
+
+		def UpdateGold(self, gold):
+			self.goldAmount = gold
+			self.goldText.SetText(localeInfo.NumberToMoney(gold))
+
+		if app.ENABLE_CHEQUE_SYSTEM:
+			def UpdateCheque(self, cheque):
+				self.chequeAmount = cheque
+				self.chequeText.SetText(localeInfo.NumberToCheque(cheque))
+
+		def UpdateLock(self, lock):
+			self.offlineShopWnd.UpdateLock(lock)
+
+		def UpdateTime(self, timeLeft):
+			self.offlineShopWnd.SetTime(timeLeft)
+
+		def UpdateSign(self, sign):
+			self.offlineShopWnd.UpdateSign(sign)
+
+		def OpenOfflineShop(self, sign, channel, index, x, y, time, update):
+			if update and self.IsShow():
+				self.Open(0, True)
+			elif not update:
+				self.Open(0, True)
+
+			self.offlineShopWnd.SetShopInfo(sign, channel, index, x, y, time, update)
+
+		if app.ENABLE_CHEQUE_SYSTEM:
+			def OnPickMoney(self, gold, cheque):
+				if gold >= 1:
+					net.SendShopWithdrawGoldPacket(gold)
+
+				if cheque >= 1:
+					net.SendShopWithdrawChequePacket(cheque)
+		else:
+			def OnPickMoney(self, gold):
+				net.SendShopWithdrawGoldPacket(gold)
+
+		def AcceptInputPrice(self):
+			if not self.priceInputBoard:
+				return True
+
+			text = self.priceInputBoard.GetText()
+
+			if app.ENABLE_CHEQUE_SYSTEM:
+				cheText = self.priceInputBoard.GetChequeText()
+				if not text and not cheText:
+					return True
+
+				if not text.isdigit() and not cheText.isdigit():
+					return True
+
+				if int(text) <= 0 and int(cheText) <= 0:
+					return True
+			else:
+				if not text:
+					return True
+
+				if not text.isdigit():
+					return True
+
+				if int(text) <= 0:
+					return True
+
+			attachedInvenType = self.priceInputBoard.sourceWindowType
+			sourceSlotPos = self.priceInputBoard.sourceSlotPos
+			targetSlotPos = self.priceInputBoard.targetSlotPos
+			price = int(self.priceInputBoard.GetText())
+			if app.ENABLE_CHEQUE_SYSTEM:
+				cheque = int(self.priceInputBoard.GetChequeText())
+
+			if app.ENABLE_CHEQUE_SYSTEM:
+				net.SendShopAddItemPacket(attachedInvenType, sourceSlotPos, targetSlotPos, price, cheque)
+			else:
+				net.SendShopAddItemPacket(attachedInvenType, sourceSlotPos, targetSlotPos, price)
+
+			self.priceInputBoard = None
+
+			return True
+
+		def CancelInputPrice(self):
+			self.priceInputBoard = None
+			return True
+
+if app.ENABLE_OFFLINE_SHOP_SYSTEM:
+	class OfflineShopWindow(ui.ScriptWindow):
+		def __init__(self):
+			ui.ScriptWindow.__init__(self)
+			self.LoadWindow()
+
+		def __del__(self):
+			ui.ScriptWindow.__del__(self)
+
+		def LoadWindow(self):
+			try:
+				PythonScriptLoader = ui.PythonScriptLoader()
+				PythonScriptLoader.LoadScriptFile(self, "UIScript/offlineshop.py")
+			except:
+				import exception
+				exception.Abort("OfflineShopWindow.LoadDialog.LoadObject")
+
+			try:
+				GetObject = self.GetChild
+				self.board = GetObject("board")
+				self.lockButton = GetObject("LockButton")
+				self.renameButton = GetObject("RenameButton")
+				self.closeButton = GetObject("CloseButton")
+				self.signText = GetObject("ShopSignText")
+				self.posInfoText = GetObject("PosInfoText")
+				self.timeLeftText = GetObject("TimeLeftText")
+			except:
+				import exception
+				exception.Abort("OfflineShopWindow.LoadDialog.BindObject")
+
+			self.lockButton.SetEvent(ui.__mem_func__(self.SetLock))
+			self.renameButton.SetEvent(ui.__mem_func__(self.OnPressChange))
+			self.closeButton.SetEvent(ui.__mem_func__(self.CloseShop))
+
+			self.expireTime = 0
+
+			self.signInputBoard = uiCommon.InputDialogWithDescription()
+			self.signInputBoard.SetTitle(uiScriptLocale.OFFLINE_SHOP_INPUT_SIGN_TITLE)
+			self.signInputBoard.SetMaxLength(25)
+			self.signInputBoard.SetBoardWidth(318 - 64)
+			self.signInputBoard.SetSlotWidth(203)
+			self.signInputBoard.SetAcceptEvent(ui.__mem_func__(self.ChangeSign))
+			self.signInputBoard.SetCancelEvent(ui.__mem_func__(self.CloseSignBoard))
+
+			self.questionDialog = None
+
+		def Destroy(self):
+			self.ClearDictionary()
+			self.lockButton = None
+			self.closeButton = None
+			self.signText = None
+			self.timeLeftText = None
+			self.posInfoText = None
+			self.renameButton = None
+			self.signInputBoard.Close()
+			self.signInputBoard = None
+			self.questionDialog = None
+
+		def Open(self, x, y, extraInfo):
+			if extraInfo:
+				self.closeButton.Hide()
+			else:
+				self.closeButton.Show()
+
+			self.isLocked = shop.IsLocked()
+			self.lockButton.SetToolTipText(uiScriptLocale.OFFLINE_SHOP_BUTTON_UNLOCK if self.isLocked else uiScriptLocale.OFFLINE_SHOP_BUTTON_LOCK)
+
+			self.Show()
+			self.SetPosition(x, y + 328)
+			self.SetTop()
+
+		def SetShopInfo(self, sign, channel, index, x, y, timeLeft, update):
+			self.expireTime = time.clock() + timeLeft
+
+			(mapName, xBase, yBase) = background.GlobalPositionToMapInfo(x, y)
+			localeMapName = localeInfo.MINIMAP_ZONE_NAME_DICT.get(mapName, "")
+			self.posInfoText.SetText("CH %d, %s (%d, %d)" % (channel, localeMapName, int(x - xBase) / 100, int(y - yBase) / 100))
+
+			self.signInputBoard.SetDescription(uiScriptLocale.OFFLINE_SHOP_INPUT_SIGN_DESC % sign)
+			self.signText.SetText(sign if len(sign) < 18 else sign[:17] + "...")
+
+		def Close(self):
+			self.OnCloseQuestionDialog()
+			self.Hide()
+
+		def UpdatePosition(self, x, y):
+			if self.IsShow():
+				self.SetPosition(x, y + 328)
+				self.SetTop()
+
+		def SetLock(self, arg = True):
+			if self.expireTime <= time.clock() and arg:
+				questionDialog = uiCommon.QuestionDialog()
+				questionDialog.SetText(uiScriptLocale.OFFLINE_SHOP_RENEW_CONFIRM)
+				questionDialog.SetAcceptEvent(lambda arg = False: self.SetLock(arg))
+				questionDialog.SetCancelEvent(ui.__mem_func__(self.OnCloseQuestionDialog))
+				questionDialog.Open()
+				self.questionDialog = questionDialog
+
+				constInfo.SET_ITEM_QUESTION_DIALOG_STATUS(1)
+			else:
+				net.SendShopLockPacket(not self.isLocked)
+				self.OnCloseQuestionDialog()
+
+		def UpdateLock(self, lock):
+			self.isLocked = lock
+
+			if self.expireTime <= time.clock():
+				self.lockButton.SetToolTipText(uiScriptLocale.OFFLINE_SHOP_BUTTON_RENEW)
+			else:
+				self.lockButton.SetToolTipText(uiScriptLocale.OFFLINE_SHOP_BUTTON_UNLOCK if self.isLocked else uiScriptLocale.OFFLINE_SHOP_BUTTON_LOCK)
+
+		def SetTime(self, timeLeft):
+			self.expireTime = time.clock() + timeLeft
+
+		def UpdateTime(self):
+			expired = self.expireTime <= time.clock()
+
+			m, s = divmod(self.expireTime - time.clock(), 60)
+			h, m = divmod(m, 60)
+			d, h = divmod(h, 24)
+
+			self.timeLeftText.SetFontColor(0.5411, 0.7254, 0.5568)
+			self.timeLeftText.SetText(uiScriptLocale.OFFLINE_SHOP_TIME_LEFT % ((d, h, m) if not expired else (0, 0, 0)))
+
+			if expired:
+				self.timeLeftText.SetFontColor(0.9, 0.4745, 0.4627)
+				self.lockButton.SetToolTipText(uiScriptLocale.OFFLINE_SHOP_BUTTON_RENEW)
+
+		def UpdateSign(self, sign):
+			self.signInputBoard.SetDescription(uiScriptLocale.OFFLINE_SHOP_INPUT_SIGN_DESC % sign)
+			self.signText.SetText(sign if len(sign) < 18 else sign[:17] + "...")
+
+		def CloseShop(self):
+			net.SendCloseShopPacket()
+
+		def OnPressChange(self):
+			self.signInputBoard.Open()
+
+		def ChangeSign(self):
+			net.SendShopChangeSignPacket(self.signInputBoard.GetText())
+			self.CloseSignBoard()
+
+		def CloseSignBoard(self):
+			self.signInputBoard.Hide()
+			self.signInputBoard.inputValue.SetText("")
+
+		def OnCloseQuestionDialog(self):
+			if not self.questionDialog:
+				return
+
+			self.questionDialog.Close()
+			self.questionDialog = None
+			constInfo.SET_ITEM_QUESTION_DIALOG_STATUS(0)
+
 
 
 class MallPageDialog(ui.ScriptWindow):

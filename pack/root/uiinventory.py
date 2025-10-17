@@ -18,6 +18,8 @@ import localeInfo
 import constInfo
 import ime
 import wndMgr
+if app.ENABLE_OFFLINE_SHOP_SYSTEM:
+	import shop
 
 ITEM_MALL_BUTTON_ENABLE = True
 
@@ -661,7 +663,10 @@ class InventoryWindow(ui.ScriptWindow):
 				mouseModule.mouseController.RunCallBack("INVENTORY")
 
 			elif player.SLOT_TYPE_SHOP == attachedSlotType:
-				net.SendShopBuyPacket(attachedSlotPos)
+				if app.ENABLE_OFFLINE_SHOP_SYSTEM and shop.IsOwner():
+					net.SendShopWithdrawItemPacket(attachedSlotPos)
+				else:
+					net.SendShopBuyPacket(attachedSlotPos)
 
 			elif player.SLOT_TYPE_SAFEBOX == attachedSlotType:
 

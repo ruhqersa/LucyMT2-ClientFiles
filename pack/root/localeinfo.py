@@ -957,3 +957,16 @@ elif IsEUROPE() and not IsWE_KOREA() and not IsYMIR():
 			return "0 %s" % (MONETARY_UNIT_JUN)
 
 		return "%s %s" % ('.'.join([ i-3<0 and str(n)[:i] or str(n)[i-3:i] for i in range(len(str(n))%3, len(str(n))+1, 3) if i ]), MONETARY_UNIT_JUN) 
+
+def NumberToMoney(n) :
+	if n <= 0 :
+		return "0"
+
+	return "%s" % ('.'.join([ i-3<0 and str(n)[:i] or str(n)[i-3:i] for i in range(len(str(n))%3, len(str(n))+1, 3) if i ]))
+
+def NumberToCheque(n) :
+	if n <= 0 :
+		return "0"
+
+	return "%s" % ('.'.join([ i-3<0 and str(n)[:i] or str(n)[i-3:i] for i in range(len(str(n))%3, len(str(n))+1, 3) if i ]))
+
